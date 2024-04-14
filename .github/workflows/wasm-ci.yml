@@ -1,0 +1,55 @@
+on: [push, pull_request, merge_group]
+
+name: Continuous integration (WASM)
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust:
+          - stable
+          - beta
+          - nightly
+    env:
+      # 20 MiB stack
+      RUST_MIN_STACK: 20971520
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          targets: wasm32-unknown-emscripten
+          components: rustfmt, clippy
+
+      - name: Install build-essential & gcc-multilib
+        run: |
+          sudo apt-get -y update
+          sudo apt-get -y install build-essential gcc-multilib
+
+      - uses: mymindstorm/setup-emsdk@v14
+
+      - name: Cargo build
+        run: cargo build
+
+      - name: Cargo test
+        run: cargo test
+
+      - name: Cargo test --no-default-features
+        run: cargo test --no-default-features
+
+      - name: Cargo test --no-default-features --features serde,kems,sigs,std
+        run: cargo test --no-default-features --features serde,kems,sigs,std --manifest-path oqs/Cargo.toml
+
+      - name: Cargo test --no-default-features --features serde,kems,sigs
+        run: cargo test --no-default-features --features serde,kems,sigs --manifest-path oqs/Cargo.toml
+
+      - name: Cargo test --no-default-features --features non_portable,kems,sigs,std
+        run: cargo test --no-default-features --features non_portable,kems,sigs,std --manifest-path oqs/Cargo.toml
+
+      - name: Cargo fmt
+        run: cargo fmt --all -- --check
+
+      - name: Cargo clippy
+        run: cargo clippy
